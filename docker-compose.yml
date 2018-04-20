@@ -1,0 +1,40 @@
+version: '2'
+services:
+
+ muzhack-green:
+  image: quay.io/aknuds1/muzhack:omniscient
+  tags:
+    - muzhack-green
+  environment:
+    - FORCE_SSL=yes
+  restart: always
+  deployment_strategy: high_availability
+ muzhack-blue:
+  image: quay.io/aknuds1/muzhack:omniscient
+  tags:
+    - muzhack-blue
+  environment:
+    - FORCE_SSL=yes
+  restart: always
+  deployment_strategy: high_availability
+ lb:
+  image: tutum/haproxy
+  tags:
+    - muzhack-lb
+  environment:
+    - EXTRA_BIND_SETTINGS=redirect scheme https code 301 if !{ ssl_fc }
+    - DEFAULT_SSL_CERT
+    - HEALTH_CHECK=check inter 10s fall 1 rise 2
+    - MODE=http
+    - OPTION=redispatch, httplog, dontlognull, forwardfor
+    - TCP_PORTS=80,443
+    - TIMEOUT=connect 10s, client 1020s, server 1020s
+    - VIRTUAL_HOST=https://*
+  restart: always
+  ports:
+    - "443:443"
+    - "80:80"
+  links:
+    - muzhack-green
+  roles:
+    - global
