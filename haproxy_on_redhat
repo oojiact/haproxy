@@ -1,0 +1,53 @@
+A.4. INSTALL AND CONFIGURE HAPROXY
+Perform the following procedure on your two HAProxy nodes:
+Install haproxy.
+# yum install haproxy
+Configure haproxy for SELinux and HTTP.
+# vi /etc/firewalld/services/haproxy-http.xml
+Add the following lines:
+<?xml version="1.0" encoding="utf-8"?>
+<service>
+<short>HAProxy-HTTP</short>
+<description>HAProxy load-balancer</description>
+<port protocol="tcp" port="80"/>
+</service>
+As root, assign the correct SELinux context and file permissions to the haproxy-http.xml file.
+# cd /etc/firewalld/services
+# restorecon haproxy-http.xml
+# chmod 640 haproxy-http.xml
+If you intend to use HTTPS, configure haproxy for SELinux and HTTPS.
+# vim /etc/firewalld/services/haproxy-https.xml
+Add the following lines:
+<?xml version="1.0" encoding="utf-8"?>
+<service>
+<short>HAProxy-HTTPS</short>
+<description>HAProxy load-balancer</description>
+<port protocol="tcp" port="443"/>
+</service>
+As root, assign the correct SELinux context and file permissions to the haproxy-https.xml file.
+# cd /etc/firewalld/services
+# restorecon haproxy-https.xml
+# chmod 640 haproxy-https.xml
+If you intend to use HTTPS, generate keys for SSL. If you do not have a certificate, you may use a self-signed certificate. For information on generating keys and on self-signed certificates, see the Red Hat Enterprise Linux System Administrator's Guide.
+Finally, put the certificate and key into a PEM file.
+# cat example.com.crt example.com.key > example.com.pem
+# cp example.com.pem /etc/ssl/private/
+Configure HAProxy.
+# vi /etc/haproxy/haproxy.cfg
+The global and defaults sections of haproxy.cfg may remain unchanged. After the defaults sections, you will need to configure frontend and backend sections, as in the following example:
+frontend http_web *:80
+    mode http
+    default_backend rgw
+
+frontend rgw­-https
+  bind <insert vip ipv4>:443 ssl crt /etc/ssl/private/example.com.pem
+  default_backend rgw
+
+backend rgw
+    balance roundrobin
+    mode http
+    server  rgw1 10.0.0.71:80 check
+    server  rgw2 10.0.0.80:80 check
+Enable/start haproxy
+# systemctl enable haproxy
+# systemctl start haproxy
